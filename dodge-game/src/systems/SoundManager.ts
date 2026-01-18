@@ -117,8 +117,9 @@ class SoundManager {
         try {
             // Use Phaser's sound system to play a tone
             // This is a placeholder until actual sound files are added
-            if (this.scene.sound.context) {
-                const audioContext = this.scene.sound.context;
+            const soundManager = this.scene.sound as any; // Type assertion for context
+            if (soundManager.context) {
+                const audioContext = soundManager.context as AudioContext;
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
 
