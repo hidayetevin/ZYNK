@@ -1,7 +1,7 @@
 # Dodge Game - Tamamlanan Adımlar
 
 **Proje Başlangıcı:** 2026-01-18 03:33  
-**Son Güncelleme:** 2026-01-18 04:02  
+**Son Güncelleme:** 2026-01-18 04:08  
 **Proje Dizini:** `D:\PROJECTS\ZYNK\dodge-game`
 
 ---
@@ -11,9 +11,9 @@
 ### Tamamlanan Fazlar
 - ✅ **PHASE 1**: Proje Setup (100%)
 - ✅ **PHASE 2**: Core Game Loop (100%)
-- ✅ **PHASE 3**: UI/UX Implementation (100% - Tüm scenes tamamlandı!)
-- 🚧 **PHASE 4**: Systems Integration (60% - Core managers tamamlandı)
-- ⏳ **PHASE 5**: Mobile Optimization (0%)
+- ✅ **PHASE 3**: UI/UX Implementation (100%)
+- ✅ **PHASE 4**: Systems Integration (100% - Tüm manager'lar tamamlandı!) 
+- 🚧 **PHASE 5**: Mobile Optimization (0% - Başlıyor)
 - ⏳ **PHASE 6**: Testing & Polish (0%)
 - ⏳ **PHASE 7**: Deployment (0%)
 
@@ -524,6 +524,230 @@ b = max(0, (color & 0xff) - 20)
 
 ---
 
+## ✅ PHASE 4: Systems Integration (TAMAMLANDI)
+
+### 4.1 ThemeManager
+
+**Dosya:** `src/systems/ThemeManager.ts`  
+**Tarih:** 04:00
+
+**Singleton Pattern:** getInstance()
+
+**5 Tema Tanımlı:**
+1. **Classic** (Free) - Dark blue bg, cyan player, red obstacles
+2. **Ocean** (5⭐) - Deep blue, light blue player, pink obstacles
+3. **Sunset** (10⭐) - Purple bg, orange player, violet obstacles
+4. **Forest** (15⭐) - Dark green, green player, red obstacles
+5. **Neon** (20⭐) - Black bg, cyan/magenta, yellow powerups
+
+**Her Tema:**
+```typescript
+{
+  id: string,
+  name: string,
+  colors: {
+    bg, player, obstacle, powerup, ui
+  },
+  unlocked: boolean,
+  cost: number
+}
+```
+
+**Metodlar:**
+- `getAllThemes()` - Tüm temaları döndür (storage sync ile)
+- `getTheme(id)` - ID'ye göre tema
+- `getCurrentTheme()` - Aktif tema
+- `setCurrentTheme(id)` - Tema değiştir (unlocked olmalı)
+- `isThemeUnlocked(id)` - Kilit kontrolü
+- `unlockTheme(id)` - Star harca, unlock et
+- `getLockedThemesCount()` / `getUnlockedThemesCount()`
+- `getNextThemeToUnlock()` - En ucuz locked tema
+
+**Storage Sync:**
+- Her tema erişiminde storage ile sync
+- Unlock durumları persistent
+
+---
+
+### 4.2 ObstacleSpawner
+
+**Dosya:** `src/systems/ObstacleSpawner.ts`  
+**Tarih:** 04:01
+
+**Constructor:** `(scene, obstaclesGroup)`
+
+**Görevler:**
+- Multi-directional obstacle spawning
+- Object pooling yönetimi
+- Difficulty-based spawn timing
+- Position/direction calculation
+
+**Spawn Logic:**
+1. Random edge seçimi (0-3: top/right/bottom/left)
+2. Edge'e göre spawn position
+3. Direction açısı hesaplama:
+   - Top: 45-135° (downward)
+   - Right: 135-225° (leftward)
+   - Bottom: 225-315° (upward)
+   - Left: -45 to 45° (rightward)
+4. Speed scaling: `baseSpeed + gameTime * 2`
+5. Random obstacle type (meteor/spike/electric)
+
+**Metodlar:**
+- `update(delta, gameTime)` - Spawn timer güncelle
+- `spawn()` - Yeni obstacle spawn et
+- `calculateSpawnData()` - Position + direction
+- `calculateNextSpawnDelay()` - `max(300, 1500 - gameTime * 10)`
+- `reset()` - Timer sıfırla
+- `getCurrentSpawnDelay()` - Debug için
+- `getActiveCount()` - Aktif obstacle sayısı
+
+**Object Pooling:**
+- Max 20 aktif obstacle
+- `getFirstDead()` ile pool'dan al
+- Yoksa yeni oluştur
+
+---
+
+### 4.3 DifficultyManager
+
+**Dosya:** `src/systems/DifficultyManager.ts`  
+**Tarih:** 04:01
+
+**Singleton Pattern**
+
+**Formulas:**
+- **Speed:** `baseSpeed + gameTime * 2` (cap: baseSpeed + 120)
+- **Spawn Delay:** `max(300, 1500 - gameTime * 10)`
+- **Difficulty Multiplier:** `min(gameTime / 60, 1.0)` (0-1 scale)
+
+**Difficulty Tiers:**
+- `0-10s` → Easy
+- `10-30s` → Medium
+- `30+s` → Hard
+
+**Metodlar:**
+- `getObstacleSpeed(baseSpeed, gameTime)` - Scaled speed
+- `getSpawnDelay(gameTime)` - Delay in ms
+- `getDifficultyMultiplier(gameTime)` - 0-1 multiplier
+- `getDifficultyTier(gameTime)` - 'easy'|'medium'|'hard'
+- `qualifiesForStar(gameTime, starLevel)` - Threshold check
+- `getSpawnRate(gameTime)` - Obstacles per second
+- `getDifficultyStats(gameTime)` - Full stats object
+
+**Stats Object:**
+```typescript
+{
+  tier: string,
+  multiplier: number,
+  spawnRate: number,
+  speedMultiplier: number
+}
+```
+
+---
+
+### 4.4 StarManager
+
+**Dosya:** `src/systems/StarManager.ts`  
+**Tarih:** 04:02
+
+**Static Utility Class** (no instance needed)
+
+**Star Calculation:**
+- 10-20s → 1⭐
+- 20-40s → 2⭐
+- 40+s → 3⭐
+
+**Static Methods:**
+- `calculateStars(timeSeconds)` - Time → stars (0-3)
+- `addStars(amount)` - StorageManager.addStars()
+- `getTotalStars()` - Current total
+- `canUnlockTheme(cost)` - Enough stars?
+- `unlockTheme(id, cost)` - Spend + unlock
+- `getStarThresholds()` - { oneStar, twoStar, threeStar }
+- `timeToNextStar(currentTime)` - Seconds needed
+- `getStarProgress(currentTime)` - Progress % (0-1)
+- `formatStars(stars)` - "⭐⭐☆"
+- `getStarEconomyInfo()` - totalEarned, averagePerGame, gamesPlayed
+
+**Progress Calculation:**
+Example: 15s survived
+- Current stars: 1
+- Progress to 2nd star: (15-10)/(20-10) = 0.5 (50%)
+
+---
+
+### 4.5 SoundManager
+
+**Dosya:** `src/systems/SoundManager.ts`  
+**Tarih:** 04:02
+
+**Singleton Pattern**
+
+**Sound Keys:**
+1. `click` - UI interactions (800Hz)
+2. `hit` - Collision (200Hz)
+3. `powerup` - Power-up collect (1200Hz)
+4. `shield_break` - Shield destroyed (400Hz)
+5. `star` - Star earned (1500Hz)
+6. `theme_unlock` - Theme unlocked (1000Hz)
+
+**Metodlar:**
+- `init(scene)` - Scene attach + settings load
+- `play(key, volume?)` - Play sound
+- `playPlaceholderSound(key)` - Web Audio beep (temporary)
+- `stop(key)` / `stopAll()` - Stop sounds
+- `setMuted(bool)` - Mute toggle + storage update
+- `isMuted()` / `setVolume(0-1)` / `getVolume()`
+- Helper methods: `playClick()`, `playHit()`, etc.
+
+**Placeholder Implementation:**
+- Web Audio API ile beep tones
+- Frequency-based sounds
+- Duration: 100ms
+- Volume: scaled with master volume
+
+**Future:** Actual sound files load edilecek
+
+---
+
+### 4.6 HapticManager
+
+**Dosya:** `src/systems/HapticManager.ts`  
+**Tarih:** 04:03
+
+**Singleton Pattern**
+
+**Capacitor Haptics Integration:**
+- `@capacitor/haptics@^5.0.0` (Capacitor 5 uyumlu)
+- Native iOS/Android support
+- Web Vibration API fallback
+
+**Haptic Types:**
+1. `light()` - ImpactStyle.Light (UI)
+2. `medium()` - ImpactStyle.Medium (buttons)
+3. `heavy()` - ImpactStyle.Heavy (collisions)
+4. `vibrate(duration)` - Custom duration
+5. `selectionChanged()` - Light
+6. `notificationSuccess/Warning/Error()` - Special notifications
+
+**Platform Detection:**
+- `isNativePlatform` - Capacitor.isNativePlatform()
+- `isAvailable()` - Native or web vibration support
+- `getPlatformInfo()` - { isNative, isAvailable }
+
+**Settings Integration:**
+- `setEnabled(bool)` - Storage update
+- `isEnabled()` - Current state
+- Auto-load from StorageManager
+
+**Web Fallback:**
+- `navigator.vibrate(duration)` if available
+- Graceful degradation
+
+---
+
 ## 📂 Oluşturulan Dosya Yapısı
 
 ```
@@ -537,9 +761,16 @@ dodge-game/
 │   │   ├── BootScene.ts ✅
 │   │   ├── MenuScene.ts ✅
 │   │   ├── GameScene.ts ✅
-│   │   └── ResultScene.ts ✅
+│   │   ├── ResultScene.ts ✅
+│   │   └── SettingsScene.ts ✅
 │   ├── systems/
-│   │   └── StorageManager.ts ✅
+│   │   ├── StorageManager.ts ✅
+│   │   ├── ThemeManager.ts ✅
+│   │   ├── ObstacleSpawner.ts ✅
+│   │   ├── DifficultyManager.ts ✅
+│   │   ├── StarManager.ts ✅
+│   │   ├── SoundManager.ts ✅
+│   │   └── HapticManager.ts ✅
 │   ├── entities/
 │   │   ├── Player.ts ✅
 │   │   └── Obstacle.ts ✅
@@ -557,7 +788,7 @@ dodge-game/
 └── README.md ✅
 ```
 
-**Toplam:** 19 dosya oluşturuldu
+**Toplam:** 25 dosya oluşturuldu
 
 ---
 
@@ -615,19 +846,34 @@ dodge-game/
 
 ## ⏭️ Sonraki Adımlar
 
-### PHASE 3 Devam (Şimdi)
-- [x] PROMPT 3.2: ResultScene - Game over ekranı ✅
-- [ ] PROMPT 3.3: SettingsScene - Ayarlar menüsü
-- [ ] PROMPT 3.4: UI Components (Button, StarDisplay, ThemeCard)
+### PHASE 4 Tamamlandı ✅
+- [x] ThemeManager
+- [x] ObstacleSpawner
+- [x] DifficultyManager
+- [x] StarManager
+- [x] SoundManager
+- [x] HapticManager
 
-### PHASE 4 (Sonra)
-- [ ] ThemeManager
-- [ ] ObstacleSpawner (dedicated system)
-- [ ] DifficultyManager
-- [ ] StarManager
-- [ ] AdManager (Capacitor)
-- [ ] SoundManager
-- [ ] HapticManager
+### PHASE 5 (Şimdi) - Mobile Optimization
+- [ ] Touch controls enhancement
+- [ ] Safe area handling (notched devices)
+- [ ] PWA configuration
+- [ ] Performance optimizations
+- [ ] Screen orientation handling
+
+### PHASE 6 (Sonra) - Testing & Polish
+- [ ] Unit tests (Vitest)
+- [ ] Integration tests
+- [ ] Performance profiling
+- [ ] Asset optimization
+- [ ] Bug fixes
+
+### PHASE 7 (Son) - Deployment
+- [ ] Production build
+- [ ] Capacitor Android setup
+- [ ] Capacitor iOS setup
+- [ ] AdMob integration (production IDs)
+- [ ] App store submissions
 
 ---
 
