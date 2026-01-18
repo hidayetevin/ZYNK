@@ -13,11 +13,12 @@
 ## 🎮 Proje Özeti
 
 ### Oyun Konsepti
-- **Tür**: Casual Arcade Dodge Game
+- **Tür**: Casual Arcade Dodge Game  
 - **Platform**: iOS, Android, Web, PWA
 - **Oyun Süresi**: 30-60 saniye/oyun
-- **Kontrol**: Tek parmak (touch/swipe)
-- **Monetization**: AdMob reklamları
+- **Kontrol**: Her yöne hareket (360° swipe/touch control)
+- **Grafik**: AI-generated assets (Gemini ile üretilecek)
+- **Monetization**: AdMob reklamları (banner sürekli, interstitial her oyun, rewarded için devam)
 - **Hedef**: Play Store + App Store + Web yayını
 
 ### Oyun Döngüsü
@@ -35,7 +36,14 @@ Uygulama Açılış → Menü → Oyun → Game Over → Yıldız Hesaplama → 
 ```typescript
 spawnDelay = Math.max(300, 1500 - time * 10)
 obstacleSpeed = baseSpeed + time * 2
+obstacleDirection = random(0, 360) // Farklı yönlerden gelebilir
 ```
+
+### Power-Up Sistemi (Phase 1)
+- **Shield**: Bir darbe koruma
+- **Slow Motion**: Zamanı %50 yavaşlatma (5 saniye)
+- **Double Score**: Çift puan kazanma (10 saniye)
+- Power-up spawn oranı: Her 15 saniyede bir
 
 ---
 
@@ -369,16 +377,19 @@ Requirements:
 1. Extend Phaser.GameObjects.Sprite
 2. Constructor: (scene, x, y, texture)
 3. Methods:
-   - moveLeft(): void
-   - moveRight(): void
+   - move(directionX: number, directionY: number): void  // 360° movement
+   - setVelocity(vx: number, vy: number): void
    - stop(): void
    - reset(): void
+   - activateShield(): void  // Power-up: Shield
 4. Physics body setup (Arcade)
-5. Collision bounds
+5. Collision bounds (circular hitbox for better feel)
 6. Movement smoothing with velocity
-7. Screen boundary clamping
+7. Screen boundary clamping (all 4 edges)
 8. Animation ready (for future sprites)
+9. Shield visual indicator when active
 
+Player can move in ANY direction (not just left/right).
 Use TypeScript class with proper typing.
 ```
 
@@ -389,19 +400,23 @@ Create the obstacle object:
 FILE: src/entities/Obstacle.ts
 
 Requirements:
-1. Extend Phaser.GameObjects.Rectangle (for now, sprite later)
-2. Constructor: (scene, x, y, speed, color)
+1. Extend Phaser.GameObjects.Sprite (AI-generated sprites will be used)
+2. Constructor: (scene, x, y, speed, direction, obstacleType)
 3. Properties:
    - speed: number
+   - direction: number (angle in degrees, 0-360)
    - active: boolean
+   - obstacleType: 'meteor' | 'spike' | 'electric' (different visuals)
 4. Methods:
-   - update(delta: number): void
-   - reset(x, y, speed): void
+   - update(delta: number): void  // Move in specified direction
+   - reset(x, y, speed, direction, type): void
    - destroy(): void
 5. Arcade physics body
-6. Auto-destroy when off-screen
+6. Auto-destroy when off-screen (any edge)
 7. Object pooling ready
+8. Support for multi-directional movement (not just falling)
 
+Obstacles can come from ANY direction (top, bottom, left, right, diagonals).
 TypeScript class with proper types.
 ```
 
@@ -761,8 +776,13 @@ Requirements:
    - Use AdConfig.ts for IDs
    - Respect USE_TEST_ADS flag
 8. Ad placement logic:
-   - Banner: Always visible except during gameplay
-   - Interstitial: After each game over
+   - Banner: SÜREKLI visible (menu, settings, result - everywhere except gameplay)
+   - Interstitial: HER OYUN sonrası (game over'da)
+   - Rewarded: Canlar bittiğinde "Continue" seçeneği için
+9. Rewarded ad logic:
+   - showRewardedAd(onRewarded: () => void): Promise<void>
+   - User watches ad → Game continues from where they died
+   - Track rewarded ad impressions in analytics
 
 Include detailed comments on test vs production setup.
 ```
