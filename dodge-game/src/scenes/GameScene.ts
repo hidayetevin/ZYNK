@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import Player from '@entities/Player';
 import Obstacle from '@entities/Obstacle';
+import PowerUpEntity from '@entities/PowerUp';
+import PowerUpSpawner from '@systems/PowerUpSpawner';
 import type { GameSceneData } from '../types/SceneData';
 import type { Theme, PowerUp, ObstacleType } from '../types/GameTypes';
 import { GAME_WIDTH, GAME_HEIGHT, STAR_THRESHOLDS } from '@config/Constants';
@@ -13,6 +15,8 @@ import StorageManager from '@systems/StorageManager';
 export default class GameScene extends Phaser.Scene {
     private player!: Player;
     private obstacles!: Phaser.GameObjects.Group;
+    private powerUps!: Phaser.GameObjects.Group;
+    private powerUpSpawner!: PowerUpSpawner;
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
 
     private gameTime: number = 0;
@@ -33,9 +37,9 @@ export default class GameScene extends Phaser.Scene {
     private touchStartY: number = 0;
     private isTouching: boolean = false;
 
-    // Power-ups
+    // Active power-up effects
     private activePowerUps: PowerUp[] = [];
-    private powerUpSpawnTimer: number = 0;
+    private scoreMultiplier: number = 1;
 
     // Stats
     private obstaclesDodged: number = 0;
@@ -54,10 +58,10 @@ export default class GameScene extends Phaser.Scene {
         this.isGameOver = false;
         this.score = 0;
         this.spawnTimer = 0;
-        this.powerUpSpawnTimer = 0;
         this.obstaclesDodged = 0;
         this.powerupsCollected = 0;
         this.activePowerUps = [];
+        this.scoreMultiplier = 1;
     }
 
     /**
@@ -67,8 +71,9 @@ export default class GameScene extends Phaser.Scene {
         // Set background color
         this.cameras.main.setBackgroundColor(this.theme.colors.bg);
 
-        // Create placeholder textures for obstacles
+        // Create placeholder textures
         Obstacle.createPlaceholderTextures(this);
+        PowerUpEntity.createPlaceholderTextures(this);
 
         // Create player at bottom center
         this.player = new Player(this, GAME_WIDTH / 2, GAME_HEIGHT - 100);
@@ -79,6 +84,16 @@ export default class GameScene extends Phaser.Scene {
             maxSize: 20,
             runChildUpdate: true,
         });
+
+        // Create power-ups group
+        this.powerUps = this.add.group({
+            classType: PowerUpEntity,
+            maxSize: 5,
+            runChildUpdate: false,
+        });
+
+        // Create power-up spawner
+        this.powerUpSpawner = new PowerUpSpawner(this, this.powerUps);
 
         // Setup input
         this.setupInput();
@@ -153,8 +168,14 @@ export default class GameScene extends Phaser.Scene {
             this.calculateNextSpawnDelay();
         }
 
-        // Update power-ups
-        this.updatePowerUps(delta);
+        // Update power-up spawner
+        this.powerUpSpawner.update(delta);
+
+        // Update power-up effects
+        this.updatePowerUpEffects(delta);
+
+        // Check power-up collisions
+        this.checkPowerUpCollisions();
 
         // Check collisions
         this.checkCollisions();
@@ -311,23 +332,87 @@ export default class GameScene extends Phaser.Scene {
     }
 
     /**
-     * Update power-ups (placeholder for now)
+     * Check power-up collisions with player
      */
-    private updatePowerUps(delta: number): void {
-        // Update active power-up timers
-        this.activePowerUps.forEach((powerUp, index) => {
-            if (powerUp.active) {
-                powerUp.timeRemaining -= delta;
-                if (powerUp.timeRemaining <= 0) {
-                    this.deactivatePowerUp(powerUp);
-                    this.activePowerUps.splice(index, 1);
-                }
+    private checkPowerUpCollisions(): void {
+        this.powerUps.getChildren().forEach(child => {
+            const powerUp = child as PowerUpEntity;
+            if (!powerUp.active) return;
+
+            const distance = Phaser.Math.Distance.Between(
+                this.player.x,
+                this.player.y,
+                powerUp.x,
+                powerUp.y
+            );
+
+            if (distance < 50) {
+                // Collect power-up!
+                this.collectPowerUp(powerUp);
             }
         });
     }
 
     /**
-     * Deactivate power-up
+     * Collect power-up and activate effect
+     */
+    private collectPowerUp(powerUp: PowerUpEntity): void {
+        const type = powerUp.getPowerUpType();
+
+        // Play collection animation
+        powerUp.collect();
+
+        // Increment counter
+        this.powerupsCollected++;
+
+        // Activate power-up effect
+        this.activatePowerUp(type);
+    }
+
+    /**
+     * Activate power-up effect
+     */
+    private activatePowerUp(type: 'shield' | 'slowmo' | 'double_score'): void {
+        const duration = type === 'double_score' ? 10000 : 5000; // ms
+        const powerUp: PowerUp = {
+            type,
+            active: true,
+            duration,
+            timeRemaining: duration,
+        };
+
+        switch (type) {
+            case 'shield':
+                this.player.activateShield();
+                break;
+            case 'slowmo':
+                this.physics.world.timeScale = 0.5;
+                break;
+            case 'double_score':
+                this.scoreMultiplier = 2;
+                break;
+        }
+
+        this.activePowerUps.push(powerUp);
+    }
+
+    /**
+     * Update active power-up effects timers
+     */
+    private updatePowerUpEffects(delta: number): void {
+        this.activePowerUps = this.activePowerUps.filter(powerUp => {
+            powerUp.timeRemaining -= delta;
+
+            if (powerUp.timeRemaining <= 0) {
+                this.deactivatePowerUp(powerUp);
+                return false;
+            }
+            return true;
+        });
+    }
+
+    /**
+     * Deactivate power-up effect
      */
     private deactivatePowerUp(powerUp: PowerUp): void {
         switch (powerUp.type) {
@@ -336,6 +421,9 @@ export default class GameScene extends Phaser.Scene {
                 break;
             case 'slowmo':
                 this.physics.world.timeScale = 1.0;
+                break;
+            case 'double_score':
+                this.scoreMultiplier = 1;
                 break;
         }
     }
