@@ -41,6 +41,26 @@ const gameConfig: Phaser.Types.Core.GameConfig = {
     render: {
         antialias: true,
         pixelArt: false,
+        roundPixels: false,
+        transparent: false,
+        clearBeforeRender: true,
+        preserveDrawingBuffer: false,
+        premultipliedAlpha: true,
+        failIfMajorPerformanceCaveat: false,
+    },
+
+    fps: {
+        target: 60,
+        forceSetTimeOut: false,
+    },
+
+    // Mobile performance
+    disableContextMenu: true,
+    autoFocus: true,
+
+    // DOM container
+    dom: {
+        createContainer: false,
     },
 };
 

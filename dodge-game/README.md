@@ -127,6 +127,28 @@ dodge-game/
 4. Add ResultScene
 5. Mobile build and testing
 
+## 📱 Mobile Features
+
+### PWA Support
+- ✅ Service Worker with offline caching
+- ✅ Install prompt (Add to Home Screen)
+- ✅ Standalone app mode
+- ✅ Manifest with icons and shortcuts
+
+### Mobile Optimizations
+- ✅ Safe area support (notched devices)
+- ✅ Touch action optimizations
+- ✅ GPU acceleration
+- ✅ Prevent pull-to-refresh
+- ✅ No text selection/tap highlight
+- ✅ 60 FPS target
+
+### Performance
+- Vite HMR: ~200ms reload
+- Object pooling: Max 20 obstacles
+- WebGL rendering with Canvas fallback
+- Optimized asset loading
+
 ## 📝 License
 
 ISC
