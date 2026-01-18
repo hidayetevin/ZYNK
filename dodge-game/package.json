@@ -22,6 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor-community/admob": "^5.3.1",
     "@capacitor/android": "^5.7.8",
     "@capacitor/haptics": "^5.0.8",
     "phaser": "^3.90.0",
