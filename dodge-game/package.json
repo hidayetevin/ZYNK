@@ -22,6 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/haptics": "^5.0.8",
     "phaser": "^3.90.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.21"
