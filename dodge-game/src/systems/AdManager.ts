@@ -39,8 +39,6 @@ class AdManager {
 
         try {
             await AdMob.initialize({
-                requestTrackingAuthorization: true,
-                testingDevices: AD_CONFIG.USE_TEST_ADS ? ['YOUR_DEVICE_ID'] : [],
                 initializeForTesting: AD_CONFIG.USE_TEST_ADS,
             });
 

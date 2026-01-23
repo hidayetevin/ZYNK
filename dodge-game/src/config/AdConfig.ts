@@ -1,8 +1,10 @@
 // AdMob Configuration
 
-export const USE_TEST_ADS = true; // Change to false for production
+const USE_TEST_ADS = true; // Change to false for production
 
-export const AdConfig = {
+export const AD_CONFIG = {
+    USE_TEST_ADS,
+
     // Test IDs (AdMob provided)
     test: {
         bannerId: 'ca-app-pub-3940256099942544/6300978111',
@@ -17,8 +19,14 @@ export const AdConfig = {
         rewardedId: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
     },
 
-    // Get current config based on USE_TEST_ADS flag
-    get current() {
-        return USE_TEST_ADS ? this.test : this.production;
+    // Get current IDs based on USE_TEST_ADS flag
+    get BANNER_ID() {
+        return this.USE_TEST_ADS ? this.test.bannerId : this.production.bannerId;
+    },
+    get INTERSTITIAL_ID() {
+        return this.USE_TEST_ADS ? this.test.interstitialId : this.production.interstitialId;
+    },
+    get REWARDED_ID() {
+        return this.USE_TEST_ADS ? this.test.rewardedId : this.production.rewardedId;
     },
 };
